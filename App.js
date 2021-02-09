@@ -1,10 +1,12 @@
 import React from "react";
 import { ScrollView, View, StyleSheet, ListView } from "react-native";
 import { Provider } from "react-native-paper";
+import { LogBox } from "react-native";
 
 import ListScreen from "./app/screens/ListScreen";
 import Routes from "./app/navigation/Routes";
 import TabNavigation from "./app/navigation/tabNavigation";
+LogBox.ignoreAllLogs();
 
 export default function App() {
   return (

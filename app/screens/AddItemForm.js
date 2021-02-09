@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, Text, View, Dimensions, Alert, Image } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Dimensions,
+  Alert,
+  Image,
+  LogBox,
+} from "react-native";
 import { Formik } from "formik";
 import FormButton from "../components/FormButton";
 import FormInput from "../components/FormInput";
@@ -7,43 +15,43 @@ import { Button, Menu, Divider } from "react-native-paper";
 import * as ImagePicker from "expo-image-picker";
 import firebase from "../utils/Firebase";
 import "firebase/firestore";
-import { YellowBox } from "react-native";
 import _ from "lodash";
-
-YellowBox.ignoreWarnings(["Setting a timer"]);
-const _console = _.clone(console);
-console.warn = (message) => {
-  if (message.indexOf("Setting a timer") <= -1) {
-    _console.warn(message);
-  }
-};
+import "firebase/storage";
+import { storage } from "firebase";
+import { v4 as uuidv4 } from "react-native-uuid";
 
 const { width, height } = Dimensions.get("screen");
+LogBox.ignoreAllLogs();
 
 export default function AddItemForm() {
-  const [items, setItems] = useState([]);
   const [visible, setVisible] = useState(false);
   const [category, setCategory] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imageRef, setImageRef] = useState("");
+  const uuid = require("react-native-uuid");
   const closeMenu = () => setVisible(false);
   function openMenu() {
     return setVisible(true);
   }
   const db = firebase.firestore();
+  //const storage = firebase.storage();
 
   //set value of categoty input from Menu
-  const handleSelection = (value) => {
+  function handleSelection(value) {
     setCategory(value);
     setVisible(false);
-  };
+  }
+
   //submit values from form to firebase database
   function submitForm(values) {
     db.collection("item").add({
       values,
       category: category,
-      image: selectedImage,
+      image: imageRef,
     });
+
     setSelectedImage(null);
+    setImageRef("");
   }
   //pick an image and add it to form for submission
   let openImagePickerAsync = async () => {
@@ -60,8 +68,24 @@ export default function AddItemForm() {
     if (pickerResult.cancelled === true) {
       return;
     }
+
     setSelectedImage({ localUri: pickerResult.uri });
   };
+
+  const randomName = uuidv4();
+  //let gsReference;
+  let uploadImage = async (uri, imageName) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const storageRef = firebase.storage().ref("images/" + imageName);
+
+    storageRef.put(blob);
+    //const gsReference = firebase
+    // .storage()
+    // .refFromURL(`gs://bucket/images/${imageName}`);
+    //print(storageRef);
+  };
+
   let pic;
   if (selectedImage !== null) {
     pic = (
@@ -77,7 +101,11 @@ export default function AddItemForm() {
       <Menu
         visible={visible}
         onDismiss={closeMenu}
-        anchor={<Button onPress={openMenu}>touch me to select category</Button>}
+        anchor={
+          <Button onPress={openMenu} color="teal">
+            touch me to select category
+          </Button>
+        }
       >
         <Menu.Item
           onPress={() => {
@@ -109,6 +137,15 @@ export default function AddItemForm() {
         initialValues={{ description: "", price: "" }}
         onSubmit={(values, actions) => {
           submitForm(values);
+          uploadImage(selectedImage.localUri, randomName)
+            .then(() => {
+              console.log("it work");
+            })
+            .catch((error) => {
+              console.log("it does not work");
+              console.error(error);
+            });
+
           actions.resetForm();
           setCategory("");
           console.log(values);
@@ -128,12 +165,14 @@ export default function AddItemForm() {
               keyboardType="numeric"
             />
             <FormButton
+              color="teal"
               mode="contained"
               onPress={openImagePickerAsync}
               title="pick an image"
             />
             {pic}
             <FormButton
+              color="teal"
               mode="contained"
               onPress={props.handleSubmit}
               title="add item"
